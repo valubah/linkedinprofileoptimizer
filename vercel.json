@@ -1,0 +1,14 @@
+{
+  "env": {
+    "LINKEDIN_CLIENT_ID": "77tx1bsnmw6fpj",
+    "LINKEDIN_CLIENT_SECRET": "WPL_AP1.YLKwaKrvp5fL4zpc.1GyPng==",
+    "NEXT_PUBLIC_LINKEDIN_CLIENT_ID": "77tx1bsnmw6fpj"
+  },
+  "build": {
+    "env": {
+      "LINKEDIN_CLIENT_ID": "77tx1bsnmw6fpj",
+      "LINKEDIN_CLIENT_SECRET": "WPL_AP1.YLKwaKrvp5fL4zpc.1GyPng==",
+      "NEXT_PUBLIC_LINKEDIN_CLIENT_ID": "77tx1bsnmw6fpj"
+    }
+  }
+}

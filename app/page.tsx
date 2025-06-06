@@ -1,7 +1,9 @@
-"use client"
+import { LinkedInProfileOptimizer } from "@/components/linkedin-profile-optimizer"
 
-import LinkedInOptimizer from "../linkedin-optimizer"
-
-export default function Page() {
-  return <LinkedInOptimizer />
+export default function Home() {
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <LinkedInProfileOptimizer />
+    </main>
+  )
 }
