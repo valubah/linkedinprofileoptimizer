@@ -62,6 +62,17 @@ export default function LinkedInCallback() {
       setStatus("error")
       setMessage("Missing authorization code")
 
+      // Send error to parent window
+      if (window.opener) {
+        window.opener.postMessage(
+          {
+            type: "LINKEDIN_AUTH_ERROR",
+            error: "Missing authorization code",
+          },
+          window.location.origin,
+        )
+      }
+
       setTimeout(() => {
         window.close()
       }, 3000)

@@ -29,6 +29,7 @@ import {
   Bot,
   Brain,
   LogOut,
+  Info,
 } from "lucide-react"
 
 interface LinkedInProfile {
@@ -56,6 +57,8 @@ export function LinkedInProfileOptimizer() {
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("dashboard")
   const [currentUrl, setCurrentUrl] = useState("")
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [demoMode, setDemoMode] = useState(false)
 
   // LinkedIn OAuth Configuration
   const LINKEDIN_CLIENT_ID = "77tx1bsnmw6fpj"
@@ -101,6 +104,8 @@ export function LinkedInProfileOptimizer() {
   const connectToLinkedIn = () => {
     if (typeof window === "undefined") return
 
+    setAuthError(null)
+
     const redirectUri = getRedirectUri()
     const state = Math.random().toString(36).substring(7)
     const authUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(
@@ -118,7 +123,7 @@ export function LinkedInProfileOptimizer() {
     const popup = window.open(authUrl, "linkedin-auth", "width=600,height=600,scrollbars=yes,resizable=yes")
 
     if (!popup) {
-      alert("Popup blocked. Please allow popups for this site and try again.")
+      setAuthError("Popup blocked. Please allow popups for this site and try again.")
       return
     }
 
@@ -131,7 +136,7 @@ export function LinkedInProfileOptimizer() {
         handleAuthSuccess(event.data.code, event.data.state)
       } else if (event.data.type === "LINKEDIN_AUTH_ERROR") {
         popup.close()
-        alert("Authentication failed: " + (event.data.error || "Unknown error"))
+        setAuthError(event.data.error || "Unknown authentication error")
       }
     }
 
@@ -148,6 +153,7 @@ export function LinkedInProfileOptimizer() {
 
   const handleAuthSuccess = async (code: string, state: string) => {
     setLoading(true)
+    setAuthError(null)
 
     try {
       // Verify state parameter
@@ -165,12 +171,11 @@ export function LinkedInProfileOptimizer() {
         body: JSON.stringify({ code }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Authentication failed")
-      }
-
       const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || data.details || "Authentication failed")
+      }
 
       if (data.success) {
         // Process LinkedIn profile data
@@ -205,11 +210,41 @@ export function LinkedInProfileOptimizer() {
       }
     } catch (error) {
       console.error("LinkedIn authentication failed:", error)
-      alert("Authentication failed: " + (error instanceof Error ? error.message : "Unknown error"))
+      setAuthError(error instanceof Error ? error.message : "Unknown authentication error")
     } finally {
       setLoading(false)
       sessionStorage.removeItem("linkedin_oauth_state")
     }
+  }
+
+  const activateDemoMode = () => {
+    // Create mock profile data
+    const mockProfile: LinkedInProfile = {
+      id: "demo-user-123",
+      firstName: "John",
+      lastName: "Doe",
+      headline: "Senior Software Engineer | Full Stack Developer | Tech Enthusiast",
+      summary: "Passionate professional with expertise in technology and innovation.",
+      location: "San Francisco, CA",
+      industry: "Technology",
+      connections: 1248,
+      profileViews: 89,
+      postImpressions: 3420,
+      profileStrength: 85,
+      profilePicture: "/placeholder.svg?height=100&width=100",
+      publicProfileUrl: "https://linkedin.com/in/johndoe",
+      emailAddress: "john.doe@example.com",
+      vanityName: "johndoe",
+    }
+
+    setProfile(mockProfile)
+    setAccessToken("demo-token")
+    setIsConnected(true)
+    setDemoMode(true)
+
+    // Store in session for persistence
+    sessionStorage.setItem("linkedin_access_token", "demo-token")
+    sessionStorage.setItem("linkedin_profile", JSON.stringify(mockProfile))
   }
 
   const refreshData = async () => {
@@ -241,6 +276,7 @@ export function LinkedInProfileOptimizer() {
     setIsConnected(false)
     setProfile(null)
     setAccessToken(null)
+    setDemoMode(false)
     sessionStorage.removeItem("linkedin_access_token")
     sessionStorage.removeItem("linkedin_profile")
   }
@@ -332,6 +368,15 @@ export function LinkedInProfileOptimizer() {
               </AlertDescription>
             </Alert>
 
+            {authError && (
+              <Alert className="bg-red-50 border-red-200 text-red-800">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-800">
+                  <strong>Authentication Error:</strong> {authError}
+                </AlertDescription>
+              </Alert>
+            )}
+
             {currentUrl && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded">
                 <p className="text-sm text-blue-800">
@@ -342,19 +387,32 @@ export function LinkedInProfileOptimizer() {
               </div>
             )}
 
-            <Button onClick={connectToLinkedIn} disabled={loading} className="w-full" size="lg">
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Connecting to LinkedIn...
-                </>
-              ) : (
-                <>
-                  <Linkedin className="w-5 h-5 mr-2" />
-                  Connect with LinkedIn
-                </>
-              )}
-            </Button>
+            <div className="flex flex-col gap-3">
+              <Button onClick={connectToLinkedIn} disabled={loading} className="w-full" size="lg">
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Connecting to LinkedIn...
+                  </>
+                ) : (
+                  <>
+                    <Linkedin className="w-5 h-5 mr-2" />
+                    Connect with LinkedIn
+                  </>
+                )}
+              </Button>
+
+              <div className="flex items-center justify-center">
+                <div className="border-t border-gray-300 flex-grow mr-3"></div>
+                <span className="text-sm text-gray-500">or</span>
+                <div className="border-t border-gray-300 flex-grow ml-3"></div>
+              </div>
+
+              <Button onClick={activateDemoMode} variant="outline" className="w-full">
+                <Info className="w-4 h-4 mr-2" />
+                Try Demo Mode (No LinkedIn Required)
+              </Button>
+            </div>
 
             <p className="text-xs text-gray-500 text-center">
               By connecting, you agree to our Terms of Service and Privacy Policy. You can disconnect at any time.
@@ -387,6 +445,7 @@ export function LinkedInProfileOptimizer() {
             </h1>
             <p className="text-gray-600">
               Welcome back, {profile?.firstName}! Your profile is {profile?.profileStrength}% optimized
+              {demoMode && <span className="ml-2 text-orange-600 font-medium">(Demo Mode)</span>}
             </p>
           </div>
         </div>
@@ -611,6 +670,15 @@ export function LinkedInProfileOptimizer() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {demoMode && (
+        <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-center">
+          <p className="text-orange-800 font-medium">
+            <Info className="w-4 h-4 inline mr-2" />
+            You're currently in Demo Mode. All features are simulated.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
