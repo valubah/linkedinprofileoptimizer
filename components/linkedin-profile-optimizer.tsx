@@ -9,6 +9,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { RealTimeDashboard } from "./real-time-dashboard"
 import { AdvancedAutomation } from "./advanced-automation"
 import { AIContentGenerator } from "./ai-content-generator"
+import { ProfileDataCollector } from "./profile-data-collector"
+import { LinkedInAuthHandler } from "./linkedin-auth-handler"
+import { Badge } from "@/components/ui/badge"
 import {
   Users,
   TrendingUp,
@@ -30,6 +33,7 @@ import {
   Brain,
   LogOut,
   Info,
+  Database,
 } from "lucide-react"
 
 interface LinkedInProfile {
@@ -52,6 +56,7 @@ interface LinkedInProfile {
 }
 
 export function LinkedInProfileOptimizer() {
+  const [mode, setMode] = useState<"choose" | "manual" | "connect">("choose")
   const [isConnected, setIsConnected] = useState(false)
   const [profile, setProfile] = useState<LinkedInProfile | null>(null)
   const [accessToken, setAccessToken] = useState<string | null>(null)
@@ -346,6 +351,200 @@ export function LinkedInProfileOptimizer() {
     sessionStorage.removeItem("linkedin_access_token")
     sessionStorage.removeItem("linkedin_profile")
     sessionStorage.removeItem("using_mock_data")
+  }
+
+  if (mode === "choose") {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4 flex items-center justify-center gap-3">
+            <Linkedin className="w-10 h-10 text-blue-600" />
+            LinkedIn Profile Optimizer Pro
+          </h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Optimize your LinkedIn profile with AI-powered insights and proven strategies for professional growth
+          </p>
+        </div>
+
+        <div className="max-w-4xl mx-auto">
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="text-center">Choose Your Optimization Method</CardTitle>
+              <CardDescription className="text-center">
+                Select how you'd like to optimize your LinkedIn profile
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Manual Input Option */}
+                <Card
+                  className="border-2 border-blue-200 hover:border-blue-400 transition-colors cursor-pointer"
+                  onClick={() => setMode("manual")}
+                >
+                  <CardHeader className="text-center">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Database className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <CardTitle className="text-xl">Manual Profile Input</CardTitle>
+                    <CardDescription>
+                      Enter your profile information manually for complete control and privacy
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span>100% Privacy - No LinkedIn connection required</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span>Complete control over your data</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span>AI-powered optimization suggestions</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span>Copy-paste optimized content to LinkedIn</span>
+                      </div>
+                    </div>
+                    <Button className="w-full mt-4" onClick={() => setMode("manual")}>
+                      <Database className="w-4 h-4 mr-2" />
+                      Start Manual Input
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* LinkedIn Connection Option */}
+                <Card
+                  className="border-2 border-green-200 hover:border-green-400 transition-colors cursor-pointer"
+                  onClick={() => setMode("connect")}
+                >
+                  <CardHeader className="text-center">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Linkedin className="w-8 h-8 text-green-600" />
+                    </div>
+                    <CardTitle className="text-xl">Connect LinkedIn Account</CardTitle>
+                    <CardDescription>
+                      Connect your LinkedIn for basic profile data (limited by LinkedIn API)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span>Auto-fill basic info (name, email, photo)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Info className="w-4 h-4 text-blue-600" />
+                        <span>Analytics data simulated (LinkedIn API limits)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span>Secure OAuth authentication</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span>Same optimization features</span>
+                      </div>
+                    </div>
+                    <Button className="w-full mt-4" onClick={() => setMode("connect")}>
+                      <Linkedin className="w-4 h-4 mr-2" />
+                      Connect LinkedIn
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Alert className="mt-6">
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Recommendation:</strong> For the best experience and complete privacy, we recommend the Manual
+                  Input method. LinkedIn's API severely limits what data third-party apps can access, so manual input
+                  gives you full control and better optimization results.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+
+          {/* Feature Comparison */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-center">What You'll Get</CardTitle>
+              <CardDescription className="text-center">
+                Powerful optimization features regardless of which method you choose
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Target className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Profile Analysis</h3>
+                  <p className="text-sm text-gray-600">
+                    AI-powered analysis of your profile completeness, keyword optimization, and professional presence
+                  </p>
+                </div>
+
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <PenTool className="w-6 h-6 text-green-600" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Content Optimization</h3>
+                  <p className="text-sm text-gray-600">
+                    Get optimized headlines, summaries, and experience descriptions that you can copy to LinkedIn
+                  </p>
+                </div>
+
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <TrendingUp className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <h3 className="font-semibold mb-2">Growth Strategy</h3>
+                  <p className="text-sm text-gray-600">
+                    Personalized recommendations and strategies to improve your LinkedIn performance
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  if (mode === "manual") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-between mb-6">
+            <Button variant="outline" onClick={() => setMode("choose")}>
+              ← Back to Options
+            </Button>
+            <Badge className="bg-blue-100 text-blue-800">Manual Input Mode</Badge>
+          </div>
+          <ProfileDataCollector />
+        </div>
+      </div>
+    )
+  }
+
+  if (mode === "connect") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-between mb-6">
+            <Button variant="outline" onClick={() => setMode("choose")}>
+              ← Back to Options
+            </Button>
+            <Badge className="bg-green-100 text-green-800">LinkedIn Connection Mode</Badge>
+          </div>
+          <LinkedInAuthHandler />
+        </div>
+      </div>
+    )
   }
 
   if (!isConnected) {
