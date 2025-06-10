@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Share2,
   ThumbsUp,
+  BarChart3,
 } from "lucide-react"
 
 interface RealTimeMetrics {
@@ -48,7 +49,12 @@ interface RealTimeMetrics {
   }>
 }
 
-export function RealTimeDashboard() {
+interface RealTimeDashboardProps {
+  profileData?: any
+  accessToken?: string
+}
+
+export function RealTimeDashboard({ profileData, accessToken }: RealTimeDashboardProps) {
   const [metrics, setMetrics] = useState<RealTimeMetrics>({
     profileViews: {
       today: 23,
@@ -97,6 +103,7 @@ export function RealTimeDashboard() {
 
   const [isLive, setIsLive] = useState(true)
   const [lastUpdate, setLastUpdate] = useState(new Date())
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Simulate real-time updates
   useEffect(() => {
@@ -171,6 +178,49 @@ export function RealTimeDashboard() {
     return () => clearInterval(interval)
   }, [isLive])
 
+  const refreshData = async () => {
+    setIsRefreshing(true)
+    try {
+      // Simulate API call to refresh real data
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      // In a real implementation, you would fetch fresh data from LinkedIn API
+      setMetrics((prev) => ({
+        ...prev,
+        profileViews: {
+          ...prev.profileViews,
+          today: prev.profileViews.today + Math.floor(Math.random() * 5),
+        },
+        connections: {
+          ...prev.connections,
+          total: prev.connections.total + Math.floor(Math.random() * 3),
+        },
+      }))
+
+      setLastUpdate(new Date())
+    } catch (error) {
+      console.error("Failed to refresh data:", error)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  const viewProfileAnalytics = () => {
+    window.open("https://www.linkedin.com/analytics/", "_blank")
+  }
+
+  const findNewConnections = () => {
+    window.open("https://www.linkedin.com/mynetwork/", "_blank")
+  }
+
+  const createNewPost = () => {
+    window.open("https://www.linkedin.com/feed/?shareActive=true", "_blank")
+  }
+
+  const shareIndustryNews = () => {
+    window.open("https://www.linkedin.com/feed/", "_blank")
+  }
+
   const unreadNotifications = metrics.notifications.filter((n) => !n.read).length
 
   const formatTimeAgo = (date: Date) => {
@@ -211,8 +261,8 @@ export function RealTimeDashboard() {
           <Button variant="outline" size="sm" onClick={() => setIsLive(!isLive)}>
             {isLive ? "Pause" : "Resume"}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setLastUpdate(new Date())}>
-            <RefreshCw className="w-4 h-4 mr-1" />
+          <Button variant="outline" size="sm" onClick={refreshData} disabled={isRefreshing}>
+            <RefreshCw className={`w-4 h-4 mr-1 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh
           </Button>
         </div>
@@ -355,19 +405,19 @@ export function RealTimeDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full justify-start" variant="outline">
-                <Eye className="w-4 h-4 mr-2" />
+              <Button className="w-full justify-start" variant="outline" onClick={viewProfileAnalytics}>
+                <BarChart3 className="w-4 h-4 mr-2" />
                 View Profile Analytics
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              <Button className="w-full justify-start" variant="outline" onClick={findNewConnections}>
                 <Users className="w-4 h-4 mr-2" />
                 Find New Connections
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              <Button className="w-full justify-start" variant="outline" onClick={createNewPost}>
                 <MessageSquare className="w-4 h-4 mr-2" />
                 Create New Post
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              <Button className="w-full justify-start" variant="outline" onClick={shareIndustryNews}>
                 <Share2 className="w-4 h-4 mr-2" />
                 Share Industry News
               </Button>

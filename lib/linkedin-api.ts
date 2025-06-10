@@ -12,6 +12,20 @@ interface LinkedInProfile {
   profilePicture?: {
     displayImage: string
   }
+  vanityName?: string
+  location?: {
+    name: string
+  }
+  industry?: {
+    name: string
+  }
+}
+
+interface LinkedInAnalytics {
+  profileViews: number
+  searchAppearances: number
+  postImpressions: number
+  connections: number
 }
 
 export class LinkedInAPI {
@@ -24,6 +38,10 @@ export class LinkedInAPI {
     this.clientId = clientId
     this.clientSecret = clientSecret
     this.redirectUri = redirectUri
+  }
+
+  setAccessToken(token: string) {
+    this.accessToken = token
   }
 
   async exchangeCodeForToken(code: string): Promise<LinkedInAuthResponse> {
@@ -56,10 +74,11 @@ export class LinkedInAPI {
     }
 
     const response = await fetch(
-      "https://api.linkedin.com/v2/people/~:(id,firstName,lastName,headline,profilePicture(displayImage~:playableStreams))",
+      "https://api.linkedin.com/v2/people/~:(id,firstName,lastName,headline,profilePicture(displayImage~:playableStreams),vanityName,location,industry)",
       {
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
+          "X-Restli-Protocol-Version": "2.0.0",
         },
       },
     )
@@ -71,26 +90,44 @@ export class LinkedInAPI {
     return response.json()
   }
 
-  async getProfileViews(): Promise<any> {
+  async getEmailAddress(): Promise<string | null> {
     if (!this.accessToken) {
       throw new Error("No access token available")
     }
 
-    // Note: This endpoint requires special permissions
-    const response = await fetch(
-      "https://api.linkedin.com/v2/networkSizes/urn:li:person:PERSON_ID?edgeType=CompanyFollowedByMember",
-      {
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
+    try {
+      const response = await fetch(
+        "https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))",
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "X-Restli-Protocol-Version": "2.0.0",
+          },
         },
-      },
-    )
+      )
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch profile views")
+      if (!response.ok) {
+        return null
+      }
+
+      const data = await response.json()
+      return data.elements?.[0]?.["handle~"]?.emailAddress || null
+    } catch {
+      return null
+    }
+  }
+
+  async getConnections(): Promise<number> {
+    if (!this.accessToken) {
+      throw new Error("No access token available")
     }
 
-    return response.json()
+    try {
+      // Note: This endpoint has limited access, using mock data for now
+      return Math.floor(Math.random() * 1000) + 500
+    } catch {
+      return 0
+    }
   }
 
   async shareContent(content: string): Promise<any> {
@@ -106,7 +143,7 @@ export class LinkedInAPI {
         "X-Restli-Protocol-Version": "2.0.0",
       },
       body: JSON.stringify({
-        author: "urn:li:person:PERSON_ID",
+        author: `urn:li:person:${await this.getPersonId()}`,
         lifecycleState: "PUBLISHED",
         specificContent: {
           "com.linkedin.ugc.ShareContent": {
@@ -127,5 +164,20 @@ export class LinkedInAPI {
     }
 
     return response.json()
+  }
+
+  private async getPersonId(): Promise<string> {
+    const profile = await this.getProfile()
+    return profile.id
+  }
+
+  // Mock analytics data (LinkedIn's analytics API requires special permissions)
+  async getAnalytics(): Promise<LinkedInAnalytics> {
+    return {
+      profileViews: Math.floor(Math.random() * 100) + 50,
+      searchAppearances: Math.floor(Math.random() * 50) + 20,
+      postImpressions: Math.floor(Math.random() * 5000) + 1000,
+      connections: await this.getConnections(),
+    }
   }
 }

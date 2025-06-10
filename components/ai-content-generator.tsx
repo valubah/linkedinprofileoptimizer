@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
 import {
   Brain,
   PenTool,
@@ -17,10 +18,11 @@ import {
   Target,
   Zap,
   Copy,
-  Share2,
   Edit,
   Sparkles,
   MessageSquare,
+  Send,
+  Download,
 } from "lucide-react"
 
 interface ContentTemplate {
@@ -46,10 +48,21 @@ interface GeneratedContent {
   score: number
   improvements: string[]
   hashtags: string[]
+  estimatedEngagement: {
+    likes: number
+    comments: number
+    shares: number
+    views: number
+  }
   scheduledTime?: string
 }
 
-export function AIContentGenerator() {
+interface AIContentGeneratorProps {
+  accessToken?: string
+  profileData?: any
+}
+
+export function AIContentGenerator({ accessToken, profileData }: AIContentGeneratorProps) {
   const [contentTemplates] = useState<ContentTemplate[]>([
     {
       id: "1",
@@ -140,67 +153,116 @@ Drop your thoughts below - especially interested in hearing from {target_audienc
   const [customPrompt, setCustomPrompt] = useState("")
   const [contentTopic, setContentTopic] = useState("")
   const [targetAudience, setTargetAudience] = useState("")
+  const [contentTone, setContentTone] = useState("professional")
+  const [contentLength, setContentLength] = useState("medium")
+  const [includeHashtags, setIncludeHashtags] = useState(true)
+  const [includeEmojis, setIncludeEmojis] = useState(true)
+  const [isSharing, setIsSharing] = useState(false)
 
   const generateContent = async (template?: ContentTemplate) => {
     setIsGenerating(true)
 
-    // Simulate AI content generation
-    await new Promise((resolve) => setTimeout(resolve, 3000))
+    try {
+      const response = await fetch("/api/ai/generate-content", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          topic: contentTopic || template?.type || "professional development",
+          audience: targetAudience || "professionals",
+          tone: contentTone,
+          length: contentLength,
+          includeHashtags,
+          includeEmojis,
+          template: template?.template,
+        }),
+      })
 
-    const mockContent: GeneratedContent = {
-      id: Date.now().toString(),
-      content: template
-        ? `🔍 Just noticed an interesting trend in Software Development:
+      if (!response.ok) {
+        throw new Error("Failed to generate content")
+      }
 
-AI-powered development tools are becoming mainstream, with 67% of developers now using AI assistants for code completion and debugging.
+      const data = await response.json()
 
-Here's what this means for professionals in our field:
+      const newContent: GeneratedContent = {
+        id: Date.now().toString(),
+        content: data.content,
+        type: template?.type || "custom",
+        score: data.score,
+        improvements: data.improvements,
+        hashtags: data.hashtags,
+        estimatedEngagement: data.estimatedEngagement,
+      }
 
-✅ Faster development cycles and reduced time-to-market
-✅ More focus on creative problem-solving rather than repetitive tasks
-✅ Need for new skills in AI tool integration and prompt engineering
-
-The developers who adapt quickly will have a significant competitive advantage.
-
-What's your take on this? Have you integrated AI tools into your workflow yet?
-
-#SoftwareDevelopment #AI #Innovation #TechTrends #ProfessionalDevelopment`
-        : `Based on your topic "${contentTopic}", here's a personalized post:
-
-🚀 The future of ${contentTopic} is evolving rapidly, and here's what I'm seeing:
-
-${customPrompt}
-
-Key insights for ${targetAudience}:
-• Embrace continuous learning
-• Focus on human-AI collaboration
-• Build adaptable skill sets
-
-What trends are you noticing in your field?
-
-#Innovation #Future #Technology #Growth`,
-      type: template?.type || "custom",
-      score: Math.floor(Math.random() * 20) + 80,
-      improvements: [
-        "Add more specific data points",
-        "Include a call-to-action question",
-        "Consider adding relevant hashtags",
-      ],
-      hashtags: template?.hashtags || ["#Innovation", "#Technology", "#Growth"],
+      setGeneratedContent((prev) => [newContent, ...prev])
+    } catch (error) {
+      console.error("Failed to generate content:", error)
+      alert("Failed to generate content. Please try again.")
+    } finally {
+      setIsGenerating(false)
     }
-
-    setGeneratedContent((prev) => [mockContent, ...prev])
-    setIsGenerating(false)
   }
 
-  const copyToClipboard = (content: string) => {
-    navigator.clipboard.writeText(content)
+  const copyToClipboard = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      alert("Content copied to clipboard!")
+    } catch (error) {
+      console.error("Failed to copy content:", error)
+    }
+  }
+
+  const shareToLinkedIn = async (content: string) => {
+    if (!accessToken) {
+      alert("Please connect your LinkedIn account to share content.")
+      return
+    }
+
+    setIsSharing(true)
+    try {
+      const response = await fetch("/api/linkedin/share", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content,
+          accessToken,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to share content")
+      }
+
+      alert("Content shared successfully to LinkedIn!")
+    } catch (error) {
+      console.error("Failed to share content:", error)
+      alert("Failed to share content. Please try again.")
+    } finally {
+      setIsSharing(false)
+    }
   }
 
   const schedulePost = (contentId: string) => {
+    const scheduledTime = "Tuesday 9:00 AM"
     setGeneratedContent((prev) =>
-      prev.map((content) => (content.id === contentId ? { ...content, scheduledTime: "Tuesday 9:00 AM" } : content)),
+      prev.map((content) => (content.id === contentId ? { ...content, scheduledTime } : content)),
     )
+    alert(`Post scheduled for ${scheduledTime}`)
+  }
+
+  const downloadContent = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${filename}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -314,6 +376,53 @@ What trends are you noticing in your field?
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="content-tone">Tone</Label>
+                  <select
+                    id="content-tone"
+                    value={contentTone}
+                    onChange={(e) => setContentTone(e.target.value)}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="professional">Professional</option>
+                    <option value="casual">Casual</option>
+                    <option value="inspirational">Inspirational</option>
+                    <option value="educational">Educational</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="content-length">Length</Label>
+                  <select
+                    id="content-length"
+                    value={contentLength}
+                    onChange={(e) => setContentLength(e.target.value)}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="short">Short (&lt; 200 chars)</option>
+                    <option value="medium">Medium (200-500 chars)</option>
+                    <option value="long">Long (&gt; 500 chars)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Options</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Switch id="include-hashtags" checked={includeHashtags} onCheckedChange={setIncludeHashtags} />
+                      <Label htmlFor="include-hashtags" className="text-sm">
+                        Include Hashtags
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Switch id="include-emojis" checked={includeEmojis} onCheckedChange={setIncludeEmojis} />
+                      <Label htmlFor="include-emojis" className="text-sm">
+                        Include Emojis
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="custom-prompt">Content Description</Label>
                 <Textarea
@@ -326,15 +435,27 @@ What trends are you noticing in your field?
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Button variant="outline" className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => setContentTopic("Question Post")}
+                >
                   <MessageSquare className="w-4 h-4" />
                   Question Post
                 </Button>
-                <Button variant="outline" className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => setContentTopic("Industry Insight")}
+                >
                   <TrendingUp className="w-4 h-4" />
                   Industry Insight
                 </Button>
-                <Button variant="outline" className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => setContentTopic("Personal Story")}
+                >
                   <Target className="w-4 h-4" />
                   Personal Story
                 </Button>
@@ -440,21 +561,19 @@ What trends are you noticing in your field?
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
                       <div>
-                        <div className="text-lg font-bold text-blue-600">{Math.floor(Math.random() * 50) + 100}</div>
+                        <div className="text-lg font-bold text-blue-600">{content.estimatedEngagement.likes}</div>
                         <div className="text-xs text-gray-600">Expected Likes</div>
                       </div>
                       <div>
-                        <div className="text-lg font-bold text-green-600">{Math.floor(Math.random() * 20) + 25}</div>
+                        <div className="text-lg font-bold text-green-600">{content.estimatedEngagement.comments}</div>
                         <div className="text-xs text-gray-600">Expected Comments</div>
                       </div>
                       <div>
-                        <div className="text-lg font-bold text-purple-600">{Math.floor(Math.random() * 10) + 8}</div>
+                        <div className="text-lg font-bold text-purple-600">{content.estimatedEngagement.shares}</div>
                         <div className="text-xs text-gray-600">Expected Shares</div>
                       </div>
                       <div>
-                        <div className="text-lg font-bold text-orange-600">
-                          {Math.floor(Math.random() * 1000) + 2000}
-                        </div>
+                        <div className="text-lg font-bold text-orange-600">{content.estimatedEngagement.views}</div>
                         <div className="text-xs text-gray-600">Expected Views</div>
                       </div>
                     </div>
@@ -490,6 +609,14 @@ What trends are you noticing in your field?
                           <Copy className="w-3 h-3 mr-1" />
                           Copy
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => downloadContent(content.content, `linkedin-post-${content.id}`)}
+                        >
+                          <Download className="w-3 h-3 mr-1" />
+                          Download
+                        </Button>
                         <Button size="sm" variant="outline">
                           <Edit className="w-3 h-3 mr-1" />
                           Edit
@@ -499,13 +626,17 @@ What trends are you noticing in your field?
                         {content.scheduledTime ? (
                           <Badge className="bg-green-100 text-green-800">Scheduled for {content.scheduledTime}</Badge>
                         ) : (
-                          <Button size="sm" onClick={() => schedulePost(content.id)}>
+                          <Button size="sm" variant="outline" onClick={() => schedulePost(content.id)}>
                             <Calendar className="w-3 h-3 mr-1" />
                             Schedule
                           </Button>
                         )}
-                        <Button size="sm">
-                          <Share2 className="w-3 h-3 mr-1" />
+                        <Button size="sm" onClick={() => shareToLinkedIn(content.content)} disabled={isSharing}>
+                          {isSharing ? (
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                          ) : (
+                            <Send className="w-3 h-3 mr-1" />
+                          )}
                           Post Now
                         </Button>
                       </div>
