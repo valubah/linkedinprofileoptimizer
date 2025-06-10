@@ -11,15 +11,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Authorization code is required" }, { status: 400 })
     }
 
-    // Determine redirect URI based on environment
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000"
+    // Determine redirect URI to match exactly what's in LinkedIn app
+    let redirectUri = ""
+    const host = request.headers.get("host") || ""
 
-    const redirectUri = `${baseUrl}/auth/linkedin/callback`
+    if (host.includes("v0-linkedinoptimizer.vercel.app")) {
+      redirectUri = "https://v0-linkedinoptimizer.vercel.app/auth/linkedin/callback"
+    } else if (host.includes("profileptimizer.vercel.app")) {
+      redirectUri = "https://profileptimizer.vercel.app/auth/linkedin/callback"
+    } else {
+      redirectUri = "http://localhost:3000/auth/linkedin/callback"
+    }
 
-    console.log("Using redirect URI:", redirectUri) // For debugging
+    console.log("API using redirect URI:", redirectUri)
 
     // Exchange authorization code for access token
     const tokenResponse = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {

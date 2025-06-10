@@ -66,14 +66,25 @@ export function LinkedInProfileOptimizer() {
   }
 
   const connectToLinkedIn = () => {
-    const baseUrl = getBaseUrl()
-    const redirectUri = `${baseUrl}/auth/linkedin/callback`
+    // Use the exact URLs that are configured in LinkedIn Developer Console
+    const baseUrl = window.location.origin
+    let redirectUri = ""
+
+    // Match the exact URLs from your LinkedIn app configuration
+    if (baseUrl.includes("v0-linkedinoptimizer.vercel.app")) {
+      redirectUri = "https://v0-linkedinoptimizer.vercel.app/auth/linkedin/callback"
+    } else if (baseUrl.includes("profileptimizer.vercel.app")) {
+      redirectUri = "https://profileptimizer.vercel.app/auth/linkedin/callback"
+    } else {
+      redirectUri = "http://localhost:3000/auth/linkedin/callback"
+    }
 
     const authUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(
       redirectUri,
-    )}&scope=${encodeURIComponent(LINKEDIN_SCOPE)}`
+    )}&scope=${encodeURIComponent(LINKEDIN_SCOPE)}&state=${Math.random().toString(36).substring(7)}`
 
-    console.log("Auth URL:", authUrl) // For debugging
+    console.log("Using redirect URI:", redirectUri)
+    console.log("Full auth URL:", authUrl)
 
     // Open LinkedIn OAuth in popup
     const popup = window.open(authUrl, "linkedin-auth", "width=600,height=600,scrollbars=yes,resizable=yes")
@@ -213,7 +224,14 @@ export function LinkedInProfileOptimizer() {
               <p className="text-sm text-blue-800">
                 <strong>Current Environment:</strong> {getBaseUrl()}
               </p>
-              <p className="text-xs text-blue-600 mt-1">Redirect URI: {getBaseUrl()}/auth/linkedin/callback</p>
+              <p className="text-xs text-blue-600 mt-1">
+                Redirect URI:{" "}
+                {window.location.origin.includes("v0-linkedinoptimizer.vercel.app")
+                  ? "https://v0-linkedinoptimizer.vercel.app/auth/linkedin/callback"
+                  : window.location.origin.includes("profileptimizer.vercel.app")
+                    ? "https://profileptimizer.vercel.app/auth/linkedin/callback"
+                    : "http://localhost:3000/auth/linkedin/callback"}
+              </p>
             </div>
 
             <Button onClick={connectToLinkedIn} disabled={loading} className="w-full" size="lg">
