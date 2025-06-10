@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -52,10 +52,18 @@ export function LinkedInProfileOptimizer() {
   const [profile, setProfile] = useState<LinkedInProfile | null>(null)
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("dashboard")
+  const [currentUrl, setCurrentUrl] = useState("")
 
   // LinkedIn OAuth Configuration
   const LINKEDIN_CLIENT_ID = "77tx1bsnmw6fpj"
   const LINKEDIN_SCOPE = "r_liteprofile r_emailaddress w_member_social r_organization_social"
+
+  // Set current URL on client side only
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentUrl(window.location.origin)
+    }
+  }, [])
 
   // Get the correct base URL for the current environment
   const getBaseUrl = () => {
@@ -65,20 +73,22 @@ export function LinkedInProfileOptimizer() {
     return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   }
 
-  const connectToLinkedIn = () => {
-    // Use the exact URLs that are configured in LinkedIn Developer Console
-    const baseUrl = window.location.origin
-    let redirectUri = ""
+  const getRedirectUri = () => {
+    const baseUrl = currentUrl || getBaseUrl()
 
-    // Match the exact URLs from your LinkedIn app configuration
     if (baseUrl.includes("v0-linkedinoptimizer.vercel.app")) {
-      redirectUri = "https://v0-linkedinoptimizer.vercel.app/auth/linkedin/callback"
+      return "https://v0-linkedinoptimizer.vercel.app/auth/linkedin/callback"
     } else if (baseUrl.includes("profileptimizer.vercel.app")) {
-      redirectUri = "https://profileptimizer.vercel.app/auth/linkedin/callback"
+      return "https://profileptimizer.vercel.app/auth/linkedin/callback"
     } else {
-      redirectUri = "http://localhost:3000/auth/linkedin/callback"
+      return "http://localhost:3000/auth/linkedin/callback"
     }
+  }
 
+  const connectToLinkedIn = () => {
+    if (typeof window === "undefined") return
+
+    const redirectUri = getRedirectUri()
     const authUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(
       redirectUri,
     )}&scope=${encodeURIComponent(LINKEDIN_SCOPE)}&state=${Math.random().toString(36).substring(7)}`
@@ -88,6 +98,11 @@ export function LinkedInProfileOptimizer() {
 
     // Open LinkedIn OAuth in popup
     const popup = window.open(authUrl, "linkedin-auth", "width=600,height=600,scrollbars=yes,resizable=yes")
+
+    if (!popup) {
+      alert("Popup blocked. Please allow popups for this site and try again.")
+      return
+    }
 
     // Listen for popup completion
     const checkClosed = setInterval(() => {
@@ -220,19 +235,14 @@ export function LinkedInProfileOptimizer() {
               </AlertDescription>
             </Alert>
 
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded">
-              <p className="text-sm text-blue-800">
-                <strong>Current Environment:</strong> {getBaseUrl()}
-              </p>
-              <p className="text-xs text-blue-600 mt-1">
-                Redirect URI:{" "}
-                {window.location.origin.includes("v0-linkedinoptimizer.vercel.app")
-                  ? "https://v0-linkedinoptimizer.vercel.app/auth/linkedin/callback"
-                  : window.location.origin.includes("profileptimizer.vercel.app")
-                    ? "https://profileptimizer.vercel.app/auth/linkedin/callback"
-                    : "http://localhost:3000/auth/linkedin/callback"}
-              </p>
-            </div>
+            {currentUrl && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+                <p className="text-sm text-blue-800">
+                  <strong>Current Environment:</strong> {currentUrl}
+                </p>
+                <p className="text-xs text-blue-600 mt-1">Redirect URI: {getRedirectUri()}</p>
+              </div>
+            )}
 
             <Button onClick={connectToLinkedIn} disabled={loading} className="w-full" size="lg">
               {loading ? (
@@ -270,7 +280,7 @@ export function LinkedInProfileOptimizer() {
             Welcome back, {profile?.firstName}! Your profile is {profile?.profileStrength}% optimized
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+        <Button variant="outline" size="sm" onClick={() => typeof window !== "undefined" && window.location.reload()}>
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh Data
         </Button>
