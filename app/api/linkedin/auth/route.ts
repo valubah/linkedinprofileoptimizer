@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { LinkedInAPI } from "@/lib/linkedin-api"
 
 // Use environment variables or fallback to hardcoded values
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID || "77tx1bsnmw6fpj"
@@ -32,62 +33,81 @@ export async function POST(request: NextRequest) {
 
     console.log("Using redirect URI:", redirectUri)
 
-    // Exchange authorization code for access token
-    const tokenResponse = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        code,
-        client_id: LINKEDIN_CLIENT_ID,
-        client_secret: LINKEDIN_CLIENT_SECRET,
-        redirect_uri: redirectUri,
-      }),
-    })
+    // Initialize LinkedIn API client
+    const linkedinAPI = new LinkedInAPI(LINKEDIN_CLIENT_ID, LINKEDIN_CLIENT_SECRET, redirectUri)
 
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text()
-      console.error("LinkedIn token exchange failed:", errorText)
+    try {
+      // Exchange authorization code for access token
+      const tokenData = await linkedinAPI.exchangeCodeForToken(code)
+      const accessToken = tokenData.access_token
 
-      return NextResponse.json(
-        {
-          error: "Failed to exchange authorization code",
-          details: errorText,
+      // Set access token for subsequent API calls
+      linkedinAPI.setAccessToken(accessToken)
+
+      // Fetch user profile data
+      const [profile, emailAddress, analytics, profilePicture] = await Promise.all([
+        linkedinAPI.getProfile().catch((error) => {
+          console.error("Error fetching profile:", error)
+          return null
+        }),
+        linkedinAPI.getEmailAddress().catch((error) => {
+          console.error("Error fetching email:", error)
+          return null
+        }),
+        linkedinAPI.getAnalytics().catch((error) => {
+          console.error("Error fetching analytics:", error)
+          return null
+        }),
+        linkedinAPI.getProfilePicture().catch((error) => {
+          console.error("Error fetching profile picture:", error)
+          return null
+        }),
+      ])
+
+      if (!profile) {
+        throw new Error("Failed to fetch LinkedIn profile data")
+      }
+
+      // Return success response with profile data
+      return NextResponse.json({
+        success: true,
+        profile: {
+          ...profile,
+          emailAddress,
+          analytics,
+          profilePicture,
         },
-        { status: 400 },
-      )
+        accessToken,
+      })
+    } catch (error) {
+      console.error("LinkedIn API error:", error)
+
+      // If we can't get real data, fall back to mock data
+      const mockProfile = {
+        id: "linkedin-user-123",
+        firstName: { localized: { en_US: "John" } },
+        lastName: { localized: { en_US: "Doe" } },
+        headline: { localized: { en_US: "Senior Software Engineer | Full Stack Developer | Tech Enthusiast" } },
+        vanityName: "johndoe",
+        emailAddress: "john.doe@example.com",
+        profilePicture: "/placeholder.svg?height=100&width=100",
+        analytics: {
+          profileViews: 89,
+          connections: 1248,
+          postImpressions: 3420,
+        },
+        isMockData: true,
+      }
+
+      return NextResponse.json({
+        success: true,
+        profile: mockProfile,
+        accessToken: "mock-token",
+        isMockData: true,
+        warning:
+          "Using mock data due to API limitations. " + (error instanceof Error ? error.message : "Unknown error"),
+      })
     }
-
-    const tokenData = await tokenResponse.json()
-    const accessToken = tokenData.access_token
-
-    // For demo purposes, we'll mock the profile data instead of making actual API calls
-    // This ensures the app works even if LinkedIn API access is limited
-    const mockProfile = {
-      id: "linkedin-user-123",
-      firstName: { localized: { en_US: "John" } },
-      lastName: { localized: { en_US: "Doe" } },
-      headline: { localized: { en_US: "Senior Software Engineer | Full Stack Developer | Tech Enthusiast" } },
-      vanityName: "johndoe",
-      emailAddress: "john.doe@example.com",
-      profilePicture: {
-        displayImage: "/placeholder.svg?height=100&width=100",
-      },
-      analytics: {
-        profileViews: 89,
-        connections: 1248,
-        postImpressions: 3420,
-      },
-    }
-
-    // Return success response with mock profile data
-    return NextResponse.json({
-      success: true,
-      profile: mockProfile,
-      accessToken, // In production, store this securely server-side
-    })
   } catch (error) {
     console.error("LinkedIn authentication error:", error)
     return NextResponse.json(

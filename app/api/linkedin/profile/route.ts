@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { LinkedInAPI } from "@/lib/linkedin-api"
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,44 +11,57 @@ export async function GET(request: NextRequest) {
 
     const accessToken = authHeader.substring(7)
 
-    // Fetch comprehensive profile data
-    const [profileResponse, emailResponse] = await Promise.all([
-      fetch(
-        "https://api.linkedin.com/v2/people/~:(id,firstName,lastName,headline,summary,location,industry,profilePicture(displayImage~:playableStreams))",
+    // Initialize LinkedIn API client
+    const linkedinAPI = new LinkedInAPI()
+    linkedinAPI.setAccessToken(accessToken)
+
+    try {
+      // Fetch user profile data
+      const [profile, emailAddress, analytics, profilePicture] = await Promise.all([
+        linkedinAPI.getProfile().catch((error) => {
+          console.error("Error fetching profile:", error)
+          return null
+        }),
+        linkedinAPI.getEmailAddress().catch((error) => {
+          console.error("Error fetching email:", error)
+          return null
+        }),
+        linkedinAPI.getAnalytics().catch((error) => {
+          console.error("Error fetching analytics:", error)
+          return null
+        }),
+        linkedinAPI.getProfilePicture().catch((error) => {
+          console.error("Error fetching profile picture:", error)
+          return null
+        }),
+      ])
+
+      if (!profile) {
+        throw new Error("Failed to fetch LinkedIn profile data")
+      }
+
+      // Return success response with profile data
+      return NextResponse.json({
+        success: true,
+        profile: {
+          ...profile,
+          emailAddress,
+          analytics,
+          profilePicture,
+        },
+      })
+    } catch (error) {
+      console.error("LinkedIn API error:", error)
+
+      // Return error response
+      return NextResponse.json(
         {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "X-Restli-Protocol-Version": "2.0.0",
-          },
+          error: "Failed to fetch profile data",
+          details: error instanceof Error ? error.message : "Unknown error",
         },
-      ),
-      fetch("https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "X-Restli-Protocol-Version": "2.0.0",
-        },
-      }),
-    ])
-
-    if (!profileResponse.ok) {
-      throw new Error("Failed to fetch profile from LinkedIn")
+        { status: 500 },
+      )
     }
-
-    const profileData = await profileResponse.json()
-
-    let emailAddress = null
-    if (emailResponse.ok) {
-      const emailData = await emailResponse.json()
-      emailAddress = emailData.elements?.[0]?.["handle~"]?.emailAddress
-    }
-
-    return NextResponse.json({
-      success: true,
-      profile: {
-        ...profileData,
-        emailAddress,
-      },
-    })
   } catch (error) {
     console.error("Profile fetch error:", error)
     return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 })

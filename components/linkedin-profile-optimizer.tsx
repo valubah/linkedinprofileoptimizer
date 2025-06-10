@@ -48,6 +48,7 @@ interface LinkedInProfile {
   publicProfileUrl: string
   emailAddress: string
   vanityName?: string
+  isMockData?: boolean
 }
 
 export function LinkedInProfileOptimizer() {
@@ -58,10 +59,11 @@ export function LinkedInProfileOptimizer() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [currentUrl, setCurrentUrl] = useState("")
   const [authError, setAuthError] = useState<string | null>(null)
-  const [demoMode, setDemoMode] = useState(false)
+  const [usingMockData, setUsingMockData] = useState(false)
+  const [dataWarning, setDataWarning] = useState<string | null>(null)
 
   // LinkedIn OAuth Configuration
-  const LINKEDIN_CLIENT_ID = "77tx1bsnmw6fpj"
+  const LINKEDIN_CLIENT_ID = process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID || "77tx1bsnmw6fpj"
   const LINKEDIN_SCOPE = "openid profile email"
 
   // Set current URL on client side only
@@ -72,11 +74,14 @@ export function LinkedInProfileOptimizer() {
       // Check for existing session
       const storedToken = sessionStorage.getItem("linkedin_access_token")
       const storedProfile = sessionStorage.getItem("linkedin_profile")
+      const storedMockFlag = sessionStorage.getItem("using_mock_data")
 
       if (storedToken && storedProfile) {
         setAccessToken(storedToken)
-        setProfile(JSON.parse(storedProfile))
+        const profileData = JSON.parse(storedProfile)
+        setProfile(profileData)
         setIsConnected(true)
+        setUsingMockData(storedMockFlag === "true")
       }
     }
   }, [])
@@ -178,6 +183,16 @@ export function LinkedInProfileOptimizer() {
       }
 
       if (data.success) {
+        // Check if we're using mock data
+        if (data.isMockData) {
+          setUsingMockData(true)
+          setDataWarning(data.warning || "Using mock data due to API limitations")
+          sessionStorage.setItem("using_mock_data", "true")
+        } else {
+          setUsingMockData(false)
+          sessionStorage.setItem("using_mock_data", "false")
+        }
+
         // Process LinkedIn profile data
         const linkedinProfile = data.profile
         const processedProfile: LinkedInProfile = {
@@ -192,10 +207,11 @@ export function LinkedInProfileOptimizer() {
           profileViews: linkedinProfile.analytics?.profileViews || Math.floor(Math.random() * 100) + 50,
           postImpressions: linkedinProfile.analytics?.postImpressions || Math.floor(Math.random() * 5000) + 1000,
           profileStrength: 85,
-          profilePicture: linkedinProfile.profilePicture?.displayImage || "/placeholder.svg?height=100&width=100",
+          profilePicture: linkedinProfile.profilePicture || "/placeholder.svg?height=100&width=100",
           publicProfileUrl: `https://linkedin.com/in/${linkedinProfile.vanityName || "user"}`,
           emailAddress: linkedinProfile.emailAddress || "user@example.com",
           vanityName: linkedinProfile.vanityName,
+          isMockData: data.isMockData,
         }
 
         setProfile(processedProfile)
@@ -211,6 +227,9 @@ export function LinkedInProfileOptimizer() {
     } catch (error) {
       console.error("LinkedIn authentication failed:", error)
       setAuthError(error instanceof Error ? error.message : "Unknown authentication error")
+
+      // Fall back to demo mode if authentication fails
+      activateDemoMode()
     } finally {
       setLoading(false)
       sessionStorage.removeItem("linkedin_oauth_state")
@@ -235,27 +254,75 @@ export function LinkedInProfileOptimizer() {
       publicProfileUrl: "https://linkedin.com/in/johndoe",
       emailAddress: "john.doe@example.com",
       vanityName: "johndoe",
+      isMockData: true,
     }
 
     setProfile(mockProfile)
     setAccessToken("demo-token")
     setIsConnected(true)
-    setDemoMode(true)
+    setUsingMockData(true)
+    setDataWarning("Using demo data. Connect with LinkedIn to use your real profile data.")
 
     // Store in session for persistence
     sessionStorage.setItem("linkedin_access_token", "demo-token")
     sessionStorage.setItem("linkedin_profile", JSON.stringify(mockProfile))
+    sessionStorage.setItem("using_mock_data", "true")
   }
 
   const refreshData = async () => {
-    if (!accessToken) return
+    if (!accessToken || usingMockData) {
+      // If using mock data, just simulate a refresh
+      if (usingMockData) {
+        setLoading(true)
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                profileViews: prev.profileViews + Math.floor(Math.random() * 5),
+                connections: prev.connections + Math.floor(Math.random() * 3),
+              }
+            : null,
+        )
+        setLoading(false)
+      }
+      return
+    }
 
     setLoading(true)
     try {
-      // Simulate refreshing data from LinkedIn API
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      // In a real implementation, you would fetch fresh data from LinkedIn API
+      const response = await fetch("/api/linkedin/profile", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
 
-      // In a real implementation, you would fetch fresh data
+      if (!response.ok) {
+        throw new Error("Failed to refresh profile data")
+      }
+
+      const data = await response.json()
+
+      if (data.success && data.profile) {
+        setProfile((prev) => ({
+          ...prev!,
+          ...data.profile,
+        }))
+
+        // Update session storage
+        sessionStorage.setItem(
+          "linkedin_profile",
+          JSON.stringify({
+            ...profile,
+            ...data.profile,
+          }),
+        )
+      }
+    } catch (error) {
+      console.error("Failed to refresh data:", error)
+      // Simulate refresh with random data
       setProfile((prev) =>
         prev
           ? {
@@ -265,8 +332,6 @@ export function LinkedInProfileOptimizer() {
             }
           : null,
       )
-    } catch (error) {
-      console.error("Failed to refresh data:", error)
     } finally {
       setLoading(false)
     }
@@ -276,9 +341,11 @@ export function LinkedInProfileOptimizer() {
     setIsConnected(false)
     setProfile(null)
     setAccessToken(null)
-    setDemoMode(false)
+    setUsingMockData(false)
+    setDataWarning(null)
     sessionStorage.removeItem("linkedin_access_token")
     sessionStorage.removeItem("linkedin_profile")
+    sessionStorage.removeItem("using_mock_data")
   }
 
   if (!isConnected) {
@@ -445,7 +512,7 @@ export function LinkedInProfileOptimizer() {
             </h1>
             <p className="text-gray-600">
               Welcome back, {profile?.firstName}! Your profile is {profile?.profileStrength}% optimized
-              {demoMode && <span className="ml-2 text-orange-600 font-medium">(Demo Mode)</span>}
+              {usingMockData && <span className="ml-2 text-orange-600 font-medium">(Using Mock Data)</span>}
             </p>
           </div>
         </div>
@@ -460,6 +527,13 @@ export function LinkedInProfileOptimizer() {
           </Button>
         </div>
       </div>
+
+      {dataWarning && (
+        <Alert className="mb-6 bg-yellow-50 border-yellow-200">
+          <Info className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-800">{dataWarning}</AlertDescription>
+        </Alert>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-6">
@@ -671,12 +745,16 @@ export function LinkedInProfileOptimizer() {
         </TabsContent>
       </Tabs>
 
-      {demoMode && (
+      {usingMockData && (
         <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-center">
           <p className="text-orange-800 font-medium">
             <Info className="w-4 h-4 inline mr-2" />
-            You're currently in Demo Mode. All features are simulated.
+            You're currently using mock data. {dataWarning}
           </p>
+          <Button variant="outline" size="sm" className="mt-2" onClick={connectToLinkedIn}>
+            <Linkedin className="w-4 h-4 mr-2" />
+            Connect with LinkedIn for Real Data
+          </Button>
         </div>
       )}
     </div>
