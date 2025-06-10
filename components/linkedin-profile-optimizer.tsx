@@ -54,9 +54,9 @@ export function LinkedInProfileOptimizer() {
   const [activeTab, setActiveTab] = useState("dashboard")
   const [currentUrl, setCurrentUrl] = useState("")
 
-  // LinkedIn OAuth Configuration
+  // LinkedIn OAuth Configuration - Using minimal scopes that are always available
   const LINKEDIN_CLIENT_ID = "77tx1bsnmw6fpj"
-  const LINKEDIN_SCOPE = "r_liteprofile r_emailaddress w_member_social r_organization_social"
+  const LINKEDIN_SCOPE = "openid profile email" // Updated to use OpenID Connect scopes
 
   // Set current URL on client side only
   useEffect(() => {
@@ -94,6 +94,7 @@ export function LinkedInProfileOptimizer() {
     )}&scope=${encodeURIComponent(LINKEDIN_SCOPE)}&state=${Math.random().toString(36).substring(7)}`
 
     console.log("Using redirect URI:", redirectUri)
+    console.log("Using scopes:", LINKEDIN_SCOPE)
     console.log("Full auth URL:", authUrl)
 
     // Open LinkedIn OAuth in popup
@@ -241,8 +242,17 @@ export function LinkedInProfileOptimizer() {
                   <strong>Current Environment:</strong> {currentUrl}
                 </p>
                 <p className="text-xs text-blue-600 mt-1">Redirect URI: {getRedirectUri()}</p>
+                <p className="text-xs text-blue-600 mt-1">Scopes: {LINKEDIN_SCOPE}</p>
               </div>
             )}
+
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Updated Scopes:</strong> Now using OpenID Connect scopes (openid, profile, email) which are more
+                widely supported and don't require special LinkedIn app approval.
+              </AlertDescription>
+            </Alert>
 
             <Button onClick={connectToLinkedIn} disabled={loading} className="w-full" size="lg">
               {loading ? (
